@@ -1,0 +1,7 @@
+services:
+  speedtest-bot:
+    build: .
+    container_name: ufo_speedtest_bot
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
