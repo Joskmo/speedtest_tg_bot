@@ -78,6 +78,7 @@ celerybeat.pid
 # Environments
 .env
 .env.*
+!.env.example
 *.env
 
 # IDEs / editors
