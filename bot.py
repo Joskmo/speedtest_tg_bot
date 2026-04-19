@@ -1,76 +1,86 @@
+"""Telegram bot for measuring and monitoring internet speed."""
+
 import asyncio
 import logging
-import speedtest
 import os
+
+import speedtest
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 
-
-# Получаем токен из переменной окружения
+# Get token from environment variable
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
-    raise ValueError("Переменная окружения BOT_TOKEN не задана!")
+    raise ValueError("Environment variable BOT_TOKEN is not set!")
 
-# Инициализация бота и диспетчера
+# Initialize bot and dispatcher
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Функция для измерения скорости интернета
+
 def run_speedtest() -> str:
+    """Measure internet speed and return formatted results."""
     try:
         st = speedtest.Speedtest()
         st.get_best_server()
-        
-        # Измеряем скорость и переводим из бит/с в Мбит/с
+
+        # Measure speed and convert from bits/s to Mbit/s
         download_speed = st.download() / 1_000_000
         upload_speed = st.upload() / 1_000_000
         ping = st.results.ping
-        
+
         return (
-            f"🚀 Результаты Speedtest:\n"
-            f"⬇️ Скачивание: {download_speed:.2f} Мбит/с\n"
-            f"⬆️ Загрузка: {upload_speed:.2f} Мбит/с\n"
-            f"🏓 Пинг: {ping:.2f} мс"
+            f"🚀 Speedtest Results:\n"
+            f"⬇️ Download: {download_speed:.2f} Mbit/s\n"
+            f"⬆️ Upload: {upload_speed:.2f} Mbit/s\n"
+            f"🏓 Ping: {ping:.2f} ms"
         )
-    except Exception as e:
-        return f"❌ Ошибка при измерении скорости: {str(e)}"
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        return f"❌ Error measuring speed: {str(e)}"
 
-# Фоновая задача: запускается один раз при старте бота
+
 async def scheduled_speedtest(chat_id: int):
+    """Periodically measure speed and send results to the chat."""
     while True:
-        # Ждем 10 минут (600 секунд) перед каждым новым измерением
+        # Wait 10 minutes (600 seconds) before each new measurement
         await asyncio.sleep(600)
-        
-        # Чтобы не блокировать асинхронный цикл (event loop), 
-        # запускаем синхронный speedtest в отдельном потоке
-        result_message = await asyncio.to_thread(run_speedtest)
-        await bot.send_message(chat_id, f"🕒 Плановое (каждые 10 мин):\n\n{result_message}")
 
-# Обработчик команды /start
+        # To avoid blocking the async event loop,
+        # run synchronous speedtest in a separate thread
+        result_message = await asyncio.to_thread(run_speedtest)
+        await bot.send_message(
+            chat_id, f"🕒 Scheduled (every 10 min):\n\n{result_message}"
+        )
+
+
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    # Мгновенно отвечаем пользователю
-    await message.answer("⏳ Ожидайте, измерение скорости...")
-    
-    # Запускаем фоновую задачу для регулярных проверок (для этого чата)
-    # create_task позволяет задаче работать независимо в фоне
+    """Handle /start command: run speedtest and start monitoring."""
+    # Respond to user immediately
+    await message.answer("⏳ Please wait, measuring speed...")
+
+    # Start background task for regular checks (for this chat)
+    # create_task allows the task to run independently in the background
     asyncio.create_task(scheduled_speedtest(message.chat.id))
-    
-    # Запускаем первичное измерение скорости
+
+    # Run initial speed measurement
     result_message = await asyncio.to_thread(run_speedtest)
-    
-    # Отправляем результаты пользователю
+
+    # Send results to user
     await message.answer(result_message)
 
+
 async def main():
+    """Start the bot and begin polling for updates."""
     logging.basicConfig(level=logging.INFO)
-    print("Бот запущен!")
-    
-    # Запуск поллинга (ожидания обновлений от Telegram)
+    print("Bot is running!")
+
+    # Start polling (waiting for updates from Telegram)
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("Бот остановлен")
+        print("Bot stopped")
