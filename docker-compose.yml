@@ -5,3 +5,8 @@ services:
     restart: unless-stopped
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
+    volumes:
+      - speedtest-data:/data
+
+volumes:
+  speedtest-data:
