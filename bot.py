@@ -43,31 +43,26 @@ def run_measurements() -> str:
 
     lines = ["\U0001f680 Speedtest Results:"]
 
-    if speedtest_result and wget_result:
-        dl_avg = (speedtest_result["download"] + wget_result["download"]) / 2
-        lines.append(
-            f"\u2b07\ufe0f Download: {dl_avg:.2f} Mbit/s "
-            f"(speedtest: {speedtest_result['download']}, "
-            f"wget: {wget_result['download']})"
-        )
-    elif speedtest_result:
-        lines.append(
-            f"\u2b07\ufe0f Download: {speedtest_result['download']} Mbit/s "
-            f"(speedtest)"
-        )
-    elif wget_result:
-        lines.append(
-            f"\u2b07\ufe0f Download: {wget_result['download']} Mbit/s "
-            f"(wget)"
-        )
-    else:
-        lines.append("\u2b07\ufe0f Download: no data")
-
     if speedtest_result:
         lines.append(
-            f"\u2b06\ufe0f Upload: {speedtest_result['upload']} Mbit/s"
+            f"\u2b07\ufe0f Speedtest Download: "
+            f"{speedtest_result['download']} Mbit/s"
         )
-        lines.append(f"\U0001f3d3 Ping: {speedtest_result['ping']} ms")
+        lines.append(
+            f"\u2b06\ufe0f Speedtest Upload: "
+            f"{speedtest_result['upload']} Mbit/s"
+        )
+        lines.append(
+            f"\U0001f3d3 Speedtest Ping: {speedtest_result['ping']} ms"
+        )
+
+    if wget_result:
+        lines.append(
+            f"\u2b07\ufe0f Wget Download: {wget_result['download']} Mbit/s"
+        )
+
+    if not speedtest_result and not wget_result:
+        lines.append("\u2b07\ufe0f Download: no data")
 
     return "\n".join(lines)
 
@@ -78,9 +73,16 @@ async def scheduled_speedtest(chat_id: int):
         await asyncio.sleep(600)
 
         result_message = await asyncio.to_thread(run_measurements)
-        hourly_data = await asyncio.to_thread(get_recent_hours, 24, DATA_PATH)
+        st_data = await asyncio.to_thread(
+            get_recent_hours, 24, "speedtest", DATA_PATH
+        )
+        wget_data = await asyncio.to_thread(
+            get_recent_hours, 24, "wget", DATA_PATH
+        )
 
-        chart_buf = await asyncio.to_thread(generate_chart, hourly_data)
+        chart_buf = await asyncio.to_thread(
+            generate_chart, st_data, wget_data
+        )
 
         await bot.send_message(
             chat_id,
@@ -100,9 +102,16 @@ async def cmd_start(message: types.Message):
     asyncio.create_task(scheduled_speedtest(message.chat.id))
 
     result_message = await asyncio.to_thread(run_measurements)
-    hourly_data = await asyncio.to_thread(get_recent_hours, 24, DATA_PATH)
+    st_data = await asyncio.to_thread(
+        get_recent_hours, 24, "speedtest", DATA_PATH
+    )
+    wget_data = await asyncio.to_thread(
+        get_recent_hours, 24, "wget", DATA_PATH
+    )
 
-    chart_buf = await asyncio.to_thread(generate_chart, hourly_data)
+    chart_buf = await asyncio.to_thread(
+        generate_chart, st_data, wget_data
+    )
 
     await message.answer(result_message)
     await message.answer_photo(

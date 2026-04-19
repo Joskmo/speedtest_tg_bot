@@ -10,37 +10,20 @@ import matplotlib.pyplot as plt
 matplotlib.use("Agg")
 
 
-def generate_chart(hourly_data: list) -> io.BytesIO:
-    """Create a line chart from hourly aggregated data.
+def generate_chart(
+    speedtest_data: list,
+    wget_data: list,
+) -> io.BytesIO:
+    """Create a line chart with two independent source curves.
 
     Returns a BytesIO buffer with the chart image.
     """
-    times = []
-    dl_values = []
-    ul_values = []
-
-    for entry in hourly_data:
-        dt = datetime.fromtimestamp(entry["time"])
-        times.append(dt)
-        dl_values.append(entry["dl"])
-        ul_values.append(entry["ul"])
-
     fig, ax = plt.subplots(figsize=(10, 5))
 
-    has_dl = any(v is not None for v in dl_values)
-    has_ul = any(v is not None for v in ul_values)
+    _plot_curve(ax, speedtest_data, "b-o", "Speedtest")
+    _plot_curve(ax, wget_data, "g-s", "Wget")
 
-    if has_dl:
-        dl_times = [t for t, v in zip(times, dl_values) if v is not None]
-        dl_vals = [v for v in dl_values if v is not None]
-        ax.plot(dl_times, dl_vals, "b-o", label="Download", markersize=4)
-
-    if has_ul:
-        ul_times = [t for t, v in zip(times, ul_values) if v is not None]
-        ul_vals = [v for v in ul_values if v is not None]
-        ax.plot(ul_times, ul_vals, "r-o", label="Upload", markersize=4)
-
-    if not has_dl and not has_ul:
+    if not speedtest_data and not wget_data:
         ax.text(
             0.5,
             0.5,
@@ -55,7 +38,7 @@ def generate_chart(hourly_data: list) -> io.BytesIO:
     ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
     fig.autofmt_xdate()
 
-    ax.set_ylabel("Mbit/s")
+    ax.set_ylabel("Download (Mbit/s)")
     ax.set_title("Network Speed (24h)")
     ax.legend()
     ax.grid(True, alpha=0.3)
@@ -67,3 +50,20 @@ def generate_chart(hourly_data: list) -> io.BytesIO:
     plt.close(fig)
 
     return buf
+
+
+def _plot_curve(ax, data: list, style: str, label: str) -> None:
+    """Plot a single curve if data is available."""
+    if not data:
+        return
+
+    times = []
+    values = []
+    for entry in data:
+        dt = datetime.fromtimestamp(entry["time"])
+        if entry["dl"] is not None:
+            times.append(dt)
+            values.append(entry["dl"])
+
+    if times:
+        ax.plot(times, values, style, label=label, markersize=4)

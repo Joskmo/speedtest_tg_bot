@@ -50,8 +50,15 @@ def add_measurement(
     save_data(data, path)
 
 
-def get_recent_hours(hours: int = 24, path: str = DATA_PATH) -> list:
-    """Return hourly aggregated data for the last N hours."""
+def get_recent_hours(
+    hours: int = 24,
+    source: str | None = None,
+    path: str = DATA_PATH,
+) -> list:
+    """Return hourly aggregated data for the last N hours.
+
+    If source is given, filter by that source only.
+    """
     data = load_data(path)
     if not data:
         return []
@@ -62,6 +69,8 @@ def get_recent_hours(hours: int = 24, path: str = DATA_PATH) -> list:
 
     buckets = {}
     for m in data:
+        if source and m["s"] != source:
+            continue
         ts = m["t"]
         if ts < window_start:
             continue
